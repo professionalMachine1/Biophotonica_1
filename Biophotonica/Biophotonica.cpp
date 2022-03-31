@@ -40,6 +40,7 @@ int main()
 	system("chcp 1251");
 	system("cls");
 
+	int task;
 	srand(time(0));
 
 	std::cout << "Введите sigma\n";
@@ -47,59 +48,52 @@ int main()
 	std::cout << "Введите число испытаний\n";
 	std::cin >> SplitOpt.N;
 	
-	/*
-		
-		f = exp(-r^2/(2*sigma^2))
+	std::cout << "Что хотетите посмотреть?\n";
+	std::cout << "1 - радиус как одномерная величина\n2 - радиус как двумерная величина\n";
+	std::cout << "3 - с координатами\n";
+	std::cin >> task;
 
-	*/
-
-	funcNum = 1;
-	SplitOpt.normalfact = 1 / AdaptiveQuadrature(0, 1000, pow(10, -8));
-	std::vector<double> r(SplitOpt.N), x(SplitOpt.N), y(SplitOpt.N);
 	double fi;
-	for (int i = 0; i < SplitOpt.N; i++)
+	std::vector<double> r(SplitOpt.N), x(SplitOpt.N), y(SplitOpt.N);
+	switch (task)
 	{
-		r[i] = NormalDistribution(true);
-		fi = rand(), fi *= 2 * PI / RAND_MAX;
-		x[i] = r[i] * cos(fi), y[i] = r[i] * sin(fi);
-	}
-	shellasort(r);
-	PointDistribution(x, y);
-	HistogrammImage(r);
-	
-	/*
-	
-		f = r*exp(-r^2/(2*sigma^2))
-	
-	*/
-	
-	funcNum = 2;
-	SplitOpt.normalfact = 1;
-	SplitOpt.normalfact = 1 / (AdaptiveQuadrature(pow(10, -8), 1000, pow(10, -8)));
-	for (int i = 0; i < SplitOpt.N; i++)
-	{
-		r[i] = _2DNormalDistributionPolar();
-		fi = rand(), fi *= 2 * PI / RAND_MAX;
-		x[i] = r[i] * cos(fi), y[i] = r[i] * sin(fi);
-	}
-	shellasort(r);
-	PointDistribution(x, y);
-	HistogrammImage(r);
-
-	/*
-		
-		x = exp(-x^2/(2*sigma^2)), y= exp(-y^2/(2*sigma^2))
-		
-	*/
-
-	funcNum = 2;
-	SplitOpt.normalfact = 1;
-	SplitOpt.normalfact = 1 / (AdaptiveQuadrature(pow(10, -8), 1000, pow(10, -8)));
-	for (int i = 0; i < SplitOpt.N; i++)
-	{
-		x[i] = NormalDistribution(false);
-		y[i] = NormalDistribution(false);
-		r[i] = sqrt(pow(x[i], 2) + pow(y[i], 2));
+	case 1:
+		//f = exp(-r^2/(2*sigma^2))
+		funcNum = 1;
+		SplitOpt.normalfact = 1 / AdaptiveQuadrature(0, 1000, pow(10, -8));
+		for (int i = 0; i < SplitOpt.N; i++)
+		{
+			r[i] = NormalDistribution(true);
+			fi = rand(), fi *= 2 * PI / RAND_MAX;
+			x[i] = r[i] * cos(fi), y[i] = r[i] * sin(fi);
+		}
+		break;
+	case 2:
+		//f = r*exp(-r^2/(2*sigma^2))
+		funcNum = 2;
+		SplitOpt.normalfact = 1;
+		SplitOpt.normalfact = 1 / (AdaptiveQuadrature(pow(10, -8), 1000, pow(10, -8)));
+		for (int i = 0; i < SplitOpt.N; i++)
+		{
+			r[i] = _2DNormalDistributionPolar();
+			fi = rand(), fi *= 2 * PI / RAND_MAX;
+			x[i] = r[i] * cos(fi), y[i] = r[i] * sin(fi);
+		}
+		break;
+	case 3:
+		//x = exp(-x^2/(2*sigma^2)), y= exp(-y^2/(2*sigma^2))
+		funcNum = 2;
+		SplitOpt.normalfact = 1;
+		SplitOpt.normalfact = 1 / (AdaptiveQuadrature(pow(10, -8), 1000, pow(10, -8)));
+		for (int i = 0; i < SplitOpt.N; i++)
+		{
+			x[i] = NormalDistribution(false);
+			y[i] = NormalDistribution(false);
+			r[i] = sqrt(pow(x[i], 2) + pow(y[i], 2));
+		}
+		break;
+	default:
+		break;
 	}
 	shellasort(r);
 	PointDistribution(x, y);
@@ -131,11 +125,13 @@ void PointDistribution(const std::vector<double>& x, const std::vector<double>& 
 void HistogrammImage(const std::vector<double>& R)
 {
 	std::ofstream RandomPoints("Rand.txt"), fReal("RealValues.txt");
+	double r = floor(R[0]), rmax = ceil(R[R.size() - 1]), h = pow(10, -2);
 	double spanlength = 0.5, span, alignment, height = 0;
-	span = spanlength, alignment = spanlength / 2.0;
+	span = floor(R[0]) + spanlength, alignment = spanlength / 2.0;
 
-	for (int i = 0; i < SplitOpt.N; )
+	for (int i = 0, iprev; i < SplitOpt.N; )
 	{
+		iprev = i;
 		while ((i < SplitOpt.N) && (R[i] <= span))
 		{
 			height += 1;
@@ -143,10 +139,14 @@ void HistogrammImage(const std::vector<double>& R)
 		}
 		RandomPoints << span - alignment << " " << height / (SplitOpt.N * spanlength) << std::endl;
 		span += spanlength;
+		if (iprev == i)
+		{
+			rmax = R[i - 1];
+			break;
+		}
 		height = 0;
 	}
 
-	double r = floor(R[0]), rmax = ceil(R[R.size() - 1]), h = pow(10, -2);
 	while (r <= rmax)
 	{
 		fReal << r << " " << fValue(r) << std::endl;
