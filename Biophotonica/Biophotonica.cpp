@@ -24,13 +24,16 @@ void PLOT(const std::string& commands)
 
 void PointDistribution(const std::vector<double>& x, const std::vector<double>& y);
 void HistogrammImage(const std::vector<double>& R);
-double RandomValueGenerate(bool RorNot);
-double AdapriveQuadrature(double a_, double b_, double eps);
+double NormalDistribution(bool RorNot);
+double _2DNormalDistributionPolar();
+double AdaptiveQuadrature(double a_, double b_, double eps);
 double SimpsonForm(double a_, double b_);
 double fValue(double x);
 std::vector<double>& shellasort(std::vector<double>& v);
 
 #define PRINT(name) std::cout << #name << " = " << name << std::endl
+
+int funcNum = 1;
 
 int main()
 {
@@ -41,20 +44,64 @@ int main()
 
 	std::cout << "Введите sigma\n";
 	std::cin >> SplitOpt.sigma;
-	SplitOpt.normalfact = 1 / AdapriveQuadrature(0, 1000, pow(10, -8));
 	std::cout << "Введите число испытаний\n";
 	std::cin >> SplitOpt.N;
 	
+	/*
+		
+		f = exp(-r^2/(2*sigma^2))
+
+	*/
+
+	funcNum = 1;
+	SplitOpt.normalfact = 1 / AdaptiveQuadrature(0, 1000, pow(10, -8));
 	std::vector<double> r(SplitOpt.N), x(SplitOpt.N), y(SplitOpt.N);
 	double fi;
 	for (int i = 0; i < SplitOpt.N; i++)
 	{
-		r[i] = RandomValueGenerate(true);
+		r[i] = NormalDistribution(true);
 		fi = rand(), fi *= 2 * PI / RAND_MAX;
 		x[i] = r[i] * cos(fi), y[i] = r[i] * sin(fi);
 	}
 	shellasort(r);
+	PointDistribution(x, y);
+	HistogrammImage(r);
+	
+	/*
+	
+		f = r*exp(-r^2/(2*sigma^2))
+	
+	*/
+	
+	funcNum = 2;
+	SplitOpt.normalfact = 1;
+	SplitOpt.normalfact = 1 / (AdaptiveQuadrature(pow(10, -8), 1000, pow(10, -8)));
+	for (int i = 0; i < SplitOpt.N; i++)
+	{
+		r[i] = _2DNormalDistributionPolar();
+		fi = rand(), fi *= 2 * PI / RAND_MAX;
+		x[i] = r[i] * cos(fi), y[i] = r[i] * sin(fi);
+	}
+	shellasort(r);
+	PointDistribution(x, y);
+	HistogrammImage(r);
 
+	/*
+		
+		x = exp(-x^2/(2*sigma^2)), y= exp(-y^2/(2*sigma^2))
+		
+	*/
+
+	funcNum = 2;
+	SplitOpt.normalfact = 1;
+	SplitOpt.normalfact = 1 / (AdaptiveQuadrature(pow(10, -8), 1000, pow(10, -8)));
+	for (int i = 0; i < SplitOpt.N; i++)
+	{
+		x[i] = NormalDistribution(false);
+		y[i] = NormalDistribution(false);
+		r[i] = sqrt(pow(x[i], 2) + pow(y[i], 2));
+	}
+	shellasort(r);
 	PointDistribution(x, y);
 	HistogrammImage(r);
 
@@ -84,14 +131,12 @@ void PointDistribution(const std::vector<double>& x, const std::vector<double>& 
 void HistogrammImage(const std::vector<double>& R)
 {
 	std::ofstream RandomPoints("Rand.txt"), fReal("RealValues.txt");
-	double r, spanlength = 0.5, span, alignment, height = 0;
+	double spanlength = 0.5, span, alignment, height = 0;
 	span = spanlength, alignment = spanlength / 2.0;
-
-	//double temp = AdapriveQuadrature(0, 1000, pow(10, -8));
 
 	for (int i = 0; i < SplitOpt.N; )
 	{
-		while ((R[i] <= span) && (i < SplitOpt.N))
+		while ((i < SplitOpt.N) && (R[i] <= span))
 		{
 			height += 1;
 			i++;
@@ -101,8 +146,7 @@ void HistogrammImage(const std::vector<double>& R)
 		height = 0;
 	}
 
-	double rmax = 20, h = pow(10, -2);
-	r = 0;
+	double r = floor(R[0]), rmax = ceil(R[R.size() - 1]), h = pow(10, -2);
 	while (r <= rmax)
 	{
 		fReal << r << " " << fValue(r) << std::endl;
@@ -124,7 +168,7 @@ void HistogrammImage(const std::vector<double>& R)
 
 */
 
-double RandomValueGenerate(bool RorNot)
+double NormalDistribution(bool RorNot)
 {
 	double S, u1, u2, v1, v2;
 
@@ -145,13 +189,20 @@ double RandomValueGenerate(bool RorNot)
 	return v1;
 }
 
+double _2DNormalDistributionPolar()
+{
+	double u;
+	u = rand(), u /= RAND_MAX;
+	return sqrt(log(pow(1 - u, -2 * pow(SplitOpt.sigma, 2))));
+}
+
 /*
 
 	Интегрирование
 
 */
 
-double AdapriveQuadrature(double a_, double b_, double eps)
+double AdaptiveQuadrature(double a_, double b_, double eps)
 {
 	double I, I1, I2;
 
@@ -159,7 +210,7 @@ double AdapriveQuadrature(double a_, double b_, double eps)
 	I1 = SimpsonForm(a_, (a_ + b_) / 2), I2 = SimpsonForm((a_ + b_) / 2, b_);
 
 	if (fabs(I1 + I2 - I) > eps)
-		I = AdapriveQuadrature(a_, (a_ + b_) / 2, eps / 2) + AdapriveQuadrature((a_ + b_) / 2, b_, eps / 2);
+		I = AdaptiveQuadrature(a_, (a_ + b_) / 2, eps / 2) + AdaptiveQuadrature((a_ + b_) / 2, b_, eps / 2);
 
 	return I;
 }
@@ -171,7 +222,19 @@ double SimpsonForm(double a_, double b_)
 
 double fValue(double x)
 {
-	return SplitOpt.normalfact * exp(-pow((x - SplitOpt.a) / SplitOpt.sigma, 2) / 2);
+	double res = 0;
+	switch (funcNum)
+	{
+	case 1:
+		res = SplitOpt.normalfact * exp(-pow((x - SplitOpt.a) / SplitOpt.sigma, 2) / 2);
+		break;
+	case 2:
+		res = SplitOpt.normalfact * x * exp(-pow((x - SplitOpt.a) / SplitOpt.sigma, 2) / 2);
+		break;
+	default:
+		break;
+	}
+	return res;
 }
 
 /*
